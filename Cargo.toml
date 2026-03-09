@@ -9,7 +9,7 @@ members = [
     "plugin/path_rewrite/*",
     "python", "swift",
 ]
-default-members = ["sudachi", "sudachi-cli"]
+default-members = ["sudachi", "sudachi-cli", "swift"]
 
 [workspace.package]
 version = "0.6.11-a1"
