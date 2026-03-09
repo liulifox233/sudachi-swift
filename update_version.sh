@@ -42,6 +42,12 @@ PYDOC_CONF_FILE="./python/docs/source/conf.py"
 echo $PYDOC_CONF_FILE
 sed -i -r "1,/^release = '/ s/^release = '${VERSION_FROM}'$/release = '${VERSION_TO}'/" $PYDOC_CONF_FILE
 
+SWIFT_PACKAGE_RENDER_SCRIPT="./swift/scripts/render-root-package.sh"
+if [ -x "$SWIFT_PACKAGE_RENDER_SCRIPT" ] ; then
+    echo $SWIFT_PACKAGE_RENDER_SCRIPT
+    "$SWIFT_PACKAGE_RENDER_SCRIPT" --tag "v${VERSION_TO}"
+fi
+
 
 # check
 echo ""

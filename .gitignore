@@ -24,5 +24,11 @@ swift/SudachiSwift/
 swift/.build/
 swift/.swiftpm/
 swift/*.xcframework
-swift/generated/
+swift/artifacts/
+swift/generated/*
+!swift/generated/sources/
+swift/generated/sources/*
+!swift/generated/sources/sudachi_swift.swift
 swift_init/
+.build/
+.swiftpm/

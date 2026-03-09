@@ -9,6 +9,7 @@ sudachi.rs is a Rust implementation of [Sudachi](https://github.com/WorksApplica
 [日本語 README](README.ja.md).
 
 Python implementation is also available: [SudachiPy Documentation](./python/README.md).
+Swift package bindings are documented in [swift/README.md](./swift/README.md).
 
 ## TL;DR
 
@@ -31,6 +32,30 @@ $ ./fetch_dictionary.sh
 $ echo "高輪ゲートウェイ駅" | sudachi
 高輪ゲートウェイ駅  名詞,固有名詞,一般,*,*,*    高輪ゲートウェイ駅
 EOS
+```
+
+or add the Swift package to Xcode with the repository URL
+
+```text
+https://github.com/WorksApplications/sudachi.rs.git
+```
+
+The `SudachiSwift` package is resolved from the repository root `Package.swift`.
+Its binary xcframework is distributed from GitHub Releases, while local development can
+point the package at a freshly generated xcframework with
+`SUDACHI_SWIFT_LOCAL_BINARY_PATH=swift/SudachiSwift/sudachi_swiftFFI.xcframework`.
+
+## Swift Package
+
+Xcode can import `SudachiSwift` directly from this repository URL. Release tags publish
+the `SudachiSwiftFFI.xcframework.zip` asset that the root [Package.swift](./Package.swift)
+references as a remote binary target.
+
+For local package development:
+
+```bash
+cargo swift package --platforms ios macos --name SudachiSwift --accept-all
+SUDACHI_SWIFT_LOCAL_BINARY_PATH=swift/SudachiSwift/sudachi_swiftFFI.xcframework swift build
 ```
 
 ### Example

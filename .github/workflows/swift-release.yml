@@ -1,18 +1,20 @@
 name: Swift Bindings Release
 
 on:
-  push:
-    tags:
-      - "swift-v*"
   workflow_dispatch:
     inputs:
-      tag_name:
-        description: "Tag name to publish (e.g. swift-v0.1.0)"
+      branch:
+        description: "Branch to publish from"
         required: true
+        default: "swift"
         type: string
 
 permissions:
   contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  SWIFT_ARTIFACT_NAME: SudachiSwiftFFI.xcframework.zip
 
 jobs:
   release-swift-package:
@@ -20,6 +22,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
 
       - name: Cache Cargo dependencies and build artifacts
         uses: actions/cache@v4
@@ -37,9 +42,10 @@ jobs:
       - name: Install cargo-swift
         run: |
           if command -v cargo-swift >/dev/null 2>&1; then
-            cargo-swift --version
+            cargo swift --version
           else
             cargo install cargo-swift@0.11.0 --locked
+            cargo swift --version
           fi
 
       - name: Add Apple targets
@@ -50,19 +56,77 @@ jobs:
           rustup target add x86_64-apple-darwin
           rustup target add aarch64-apple-darwin
 
-      - name: Build Swift package
+      - name: Resolve release metadata
+        id: release
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          tag="v${version}"
+          artifact_path="${RUNNER_TEMP}/${SWIFT_ARTIFACT_NAME}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_path=${artifact_path}" >> "${GITHUB_OUTPUT}"
+
+      - name: Ensure release tag does not already exist
+        run: |
+          if git rev-parse -q --verify "refs/tags/${{ steps.release.outputs.tag }}" >/dev/null; then
+            echo "Tag ${{ steps.release.outputs.tag }} already exists." >&2
+            exit 1
+          fi
+
+      - name: Build release Swift package
         working-directory: ./swift
         run: cargo swift package --platforms ios macos --name SudachiSwift --accept-all --release
 
-      - name: Archive Swift package
+      - name: Archive xcframework
         run: |
-          cd swift
-          zip -r SudachiSwift-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}.zip SudachiSwift
+          ditto -c -k --sequesterRsrc --keepParent \
+            swift/SudachiSwift/sudachi_swiftFFI.xcframework \
+            "${{ steps.release.outputs.artifact_path }}"
+
+      - name: Compute SwiftPM checksum
+        id: checksum
+        run: |
+          checksum=$(swift package compute-checksum "${{ steps.release.outputs.artifact_path }}")
+          echo "value=${checksum}" >> "${GITHUB_OUTPUT}"
+
+      - name: Update root Swift package files
+        run: |
+          mkdir -p swift/generated/sources
+          cp swift/SudachiSwift/Sources/SudachiSwift/sudachi_swift.swift swift/generated/sources/sudachi_swift.swift
+          ./swift/scripts/render-root-package.sh \
+            --tag "${{ steps.release.outputs.tag }}" \
+            --repository-url "https://github.com/${{ github.repository }}" \
+            --checksum "${{ steps.checksum.outputs.value }}"
+
+      - name: Validate rendered root Swift package
+        env:
+          SUDACHI_SWIFT_LOCAL_BINARY_PATH: swift/SudachiSwift/sudachi_swiftFFI.xcframework
+        run: swift build
+
+      - name: Commit release manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Package.swift swift/generated/sources/sudachi_swift.swift
+
+          if git diff --cached --quiet; then
+            echo "No tracked SwiftPM manifest changes to commit."
+          else
+            git commit -m "Prepare SwiftPM release ${{ steps.release.outputs.tag }}"
+          fi
+
+      - name: Push branch and tag
+        run: |
+          git tag "${{ steps.release.outputs.tag }}"
+          git push origin "HEAD:${{ inputs.branch }}"
+          git push origin "${{ steps.release.outputs.tag }}"
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}
-          name: Swift Build ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}
-          files: swift/SudachiSwift-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}.zip
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: SudachiSwift ${{ steps.release.outputs.tag }}
+          files: ${{ steps.release.outputs.artifact_path }}
           generate_release_notes: true
+          prerelease: ${{ contains(steps.release.outputs.version, '-') }}

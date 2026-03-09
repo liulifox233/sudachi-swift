@@ -4,18 +4,22 @@ on:
   push:
     branches: [ swift ]
     paths:
+      - "Package.swift"
       - "swift/**"
       - "sudachi/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - ".gitignore"
       - ".github/workflows/swift-ci.yml"
   pull_request:
     branches: [ swift ]
     paths:
+      - "Package.swift"
       - "swift/**"
       - "sudachi/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - ".gitignore"
       - ".github/workflows/swift-ci.yml"
 
 env:
@@ -44,9 +48,10 @@ jobs:
       - name: Install cargo-swift
         run: |
           if command -v cargo-swift >/dev/null 2>&1; then
-            cargo-swift --version
+            cargo swift --version
           else
             cargo install cargo-swift@0.11.0 --locked
+            cargo swift --version
           fi
 
       - name: Add Apple targets
@@ -62,6 +67,22 @@ jobs:
       - name: Build Swift package
         working-directory: ./swift
         run: cargo swift package --platforms ios macos --name SudachiSwift --accept-all
+
+      - name: Check committed Swift wrapper source
+        run: git diff --no-index --exit-code -- swift/generated/sources/sudachi_swift.swift swift/SudachiSwift/Sources/SudachiSwift/sudachi_swift.swift
+
+      - name: Check root Package.swift renderer
+        shell: bash
+        run: |
+          checksum=$(sed -n 's/^let remoteBinaryArtifactChecksum = "\(.*\)"$/\1/p' Package.swift | head -n 1)
+          tag=$(sed -n 's/^let releaseTag = "\(.*\)"$/\1/p' Package.swift | head -n 1)
+          ./swift/scripts/render-root-package.sh --tag "${tag}" --checksum "${checksum}"
+          git diff --exit-code -- Package.swift
+
+      - name: Validate root Swift package
+        env:
+          SUDACHI_SWIFT_LOCAL_BINARY_PATH: swift/SudachiSwift/sudachi_swiftFFI.xcframework
+        run: swift build
 
       - name: Upload Swift package artifact
         uses: actions/upload-artifact@v4

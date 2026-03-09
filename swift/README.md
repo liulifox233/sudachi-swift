@@ -3,7 +3,14 @@
 This crate is the Rust source for the Swift bindings of `sudachi.rs`.
 
 The published Swift package artifacts are generated in CI/CD with `cargo swift`.
-Generated outputs such as `swift/generated/` and `swift/SudachiSwift/` are intentionally not committed to the repository.
+The repository root now contains the consumable SwiftPM entrypoint for Xcode:
+
+- `/Package.swift` is the manifest Xcode resolves from the repository URL.
+- `swift/generated/sources/sudachi_swift.swift` is the committed UniFFI-generated wrapper source.
+- `SudachiSwiftFFI.xcframework.zip` is attached to GitHub Releases and referenced as a remote binary target.
+
+Transient build outputs such as `swift/SudachiSwift/`, `swift/.build/`, and `swift/artifacts/`
+remain uncommitted.
 
 ## Public Swift API
 
@@ -62,7 +69,16 @@ Local packaging example:
 
 ```bash
 cd swift
-cargo swift package -n SudachiSwift -p macos@10_15 -y
+cargo swift package --platforms ios macos --name SudachiSwift --accept-all
 ```
 
-The exact release packaging flow should continue to live in CI/CD.
+For repository-root SwiftPM validation during local development:
+
+```bash
+cargo swift package --platforms ios macos --name SudachiSwift --accept-all
+SUDACHI_SWIFT_LOCAL_BINARY_PATH=swift/SudachiSwift/sudachi_swiftFFI.xcframework swift build
+```
+
+Release publishing is handled by `.github/workflows/swift-release.yml`. It builds the
+xcframework, computes the SwiftPM checksum, rewrites the root `Package.swift`, and uploads
+`SudachiSwiftFFI.xcframework.zip` to the matching GitHub Release tag.
