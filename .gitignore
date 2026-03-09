@@ -18,3 +18,11 @@ __pycache__/
 *.so
 python/py_src/sudachipy/*.pyd
 python/build/
+
+# swift binding
+swift/SudachiSwift/
+swift/.build/
+swift/.swiftpm/
+swift/*.xcframework
+swift/generated/
+swift_init/

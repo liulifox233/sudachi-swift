@@ -7,7 +7,7 @@ members = [
     "plugin/input_text/*",
     "plugin/oov/*",
     "plugin/path_rewrite/*",
-    "python",
+    "python", "swift",
 ]
 default-members = ["sudachi", "sudachi-cli"]
 

@@ -1,0 +1,13 @@
+[package]
+name = "sudachi_swift"
+version = "0.6.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib", "lib"]
+name = "sudachi_swift"
+
+[dependencies]
+sudachi = { path = "../sudachi" }
+uniffi = { version = "0.31.0", default-features = false }
+thiserror = "2.0.18"
